@@ -7,7 +7,7 @@ import java.io.IOException;
 
 public class Demo {
 	
-	public static final String SAMPLE_FILE = "/home/loulei/ws_dex/DexParser/file/force.dex";
+	public static final String SAMPLE_FILE = "/home/loulei/ws_dex/DexParser/file/Hello.dex";
 
 	public static void main(String[] args) {
 		try {

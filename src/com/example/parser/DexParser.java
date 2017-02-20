@@ -402,12 +402,107 @@ public class DexParser {
 			inputStream.read(class_data_off);
 			classDefItem.class_data_off = Utils.byteToInt(class_data_off);
 			
+			if(classDefItem.class_data_off != 0){
+				parseClassData(classDefItem.class_data_off);
+			}
+			
 			byte[] static_value_off = new byte[4];
 			inputStream.read(static_value_off);
 			classDefItem.static_value_off = Utils.byteToInt(static_value_off);
 			
 			System.out.println(classDefItem.toString());
 		}
+	}
+	
+	private void parseClassData(int offset) throws IOException{
+		ClassDataItem classDataItem = new ClassDataItem();
+		
+		InputStream inputStream = Utils.byte2InputStream(DEX_DATA);
+		inputStream.skip(offset);
+		
+		classDataItem.staticFieldSize = Utils.decodeULEB128(inputStream);
+		classDataItem.instaceFieldSize = Utils.decodeULEB128(inputStream);
+		classDataItem.directMethodSize = Utils.decodeULEB128(inputStream);
+		classDataItem.virtualMethodSize = Utils.decodeULEB128(inputStream);
+		
+		classDataItem.staticFields = new ArrayList<EncodedField>();
+		if(classDataItem.staticFieldSize > 0){
+			for(int i=0; i<classDataItem.staticFieldSize; i++){
+				EncodedField encodedField = new EncodedField();
+				encodedField.fieldIndex = Utils.decodeULEB128(inputStream);
+				encodedField.accessFlags = AccessFlag.getName(Utils.decodeULEB128(inputStream));
+				encodedField.fieldName = fieldItems[encodedField.fieldIndex].fieldname;
+				classDataItem.staticFields.add(i, encodedField);
+			}
+		}
+		
+		classDataItem.instanceFields = new ArrayList<EncodedField>();
+		if(classDataItem.instaceFieldSize > 0){
+			for(int i=0; i<classDataItem.instaceFieldSize; i++){
+				EncodedField encodedField = new EncodedField();
+				encodedField.fieldIndex = Utils.decodeULEB128(inputStream);
+				encodedField.accessFlags = AccessFlag.getName(Utils.decodeULEB128(inputStream));
+				encodedField.fieldName = fieldItems[encodedField.fieldIndex].fieldname;
+				classDataItem.instanceFields.add(i, encodedField);
+			}
+		}
+		
+		classDataItem.directMethods = new ArrayList<EncodedMethod>();
+		if(classDataItem.directMethodSize > 0){
+			for(int i=0; i<classDataItem.directMethodSize; i++){
+				EncodedMethod encodedMethod = new EncodedMethod();
+				encodedMethod.methodIndex = Utils.decodeULEB128(inputStream);
+				encodedMethod.accessFlags = AccessFlag.getName(Utils.decodeULEB128(inputStream));
+				encodedMethod.codeOffset = Utils.decodeULEB128(inputStream);
+				encodedMethod.methodName = methodItems[encodedMethod.methodIndex].methodName;
+				classDataItem.directMethods.add(i, encodedMethod);
+				parseCodeItem(encodedMethod.methodName, encodedMethod.codeOffset);
+			}
+		}
+		
+		classDataItem.virtualMethods = new ArrayList<EncodedMethod>();
+		if(classDataItem.virtualMethodSize > 0){
+			for(int i=0; i<classDataItem.virtualMethodSize; i++){
+				EncodedMethod encodedMethod = new EncodedMethod();
+				encodedMethod.methodIndex = Utils.decodeULEB128(inputStream);
+				encodedMethod.accessFlags = AccessFlag.getName(Utils.decodeULEB128(inputStream));
+				encodedMethod.codeOffset = Utils.decodeULEB128(inputStream);
+				encodedMethod.methodName = methodItems[encodedMethod.methodIndex].methodName;
+				classDataItem.virtualMethods.add(i, encodedMethod);
+				parseCodeItem(encodedMethod.methodName, encodedMethod.codeOffset);
+			}
+		}
+		
+		System.out.println(classDataItem.toString());
+	}
+	
+	private void parseCodeItem(String methodName, int offset) throws IOException{
+		CodeItem codeItem = new CodeItem();
+		
+		InputStream inputStream = Utils.byte2InputStream(DEX_DATA);
+		inputStream.skip(offset);
+		
+		byte[] ushort_data = new byte[2];
+		byte[] uint_data = new byte[4];
+		
+		inputStream.read(ushort_data);
+		codeItem.registerSize = Utils.byteToShort(ushort_data);
+		inputStream.read(ushort_data);
+		codeItem.inSize = Utils.byteToShort(ushort_data);
+		inputStream.read(ushort_data);
+		codeItem.outSize = Utils.byteToShort(ushort_data);
+		inputStream.read(ushort_data);
+		codeItem.trySize = Utils.byteToShort(ushort_data);
+		inputStream.read(uint_data);
+		codeItem.debugInfoOffset = Utils.byteToInt(uint_data);
+		inputStream.read(uint_data);
+		codeItem.insnsSize = Utils.byteToInt(uint_data);
+		
+		byte[] code_op_data = new byte[codeItem.insnsSize * 2];
+		inputStream.read(code_op_data);
+		codeItem.insns = code_op_data;
+		
+		System.out.println(methodName+" : "+codeItem.toString());
 	}
 }
 
