@@ -7,7 +7,7 @@ import java.io.IOException;
 
 public class Demo {
 	
-	public static final String SAMPLE_FILE = "/home/loulei/ws_dex/DexParser/file/Hello.dex";
+	public static final String SAMPLE_FILE = "/home/loulei/ws_dex/DexParser/file/classes.dex";
 
 	public static void main(String[] args) {
 		try {
@@ -22,8 +22,8 @@ public class Demo {
 			bos.close();
 			fis.close();
 			
-			DexParser dexParser = new DexParser();
-			dexParser.parse(dexData);
+			DexParser dexParser = new DexParser(dexData);
+			dexParser.parse();
 			
 		} catch (FileNotFoundException e) {
 			// TODO Auto-generated catch block
@@ -34,3 +34,4 @@ public class Demo {
 		}
 	}
 }
+

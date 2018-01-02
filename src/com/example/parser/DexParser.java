@@ -53,16 +53,17 @@ public class DexParser {
 	
 	public ClassDefItem classDefItem;
 	
-	public void parse(byte[] data) {
-		// TODO Auto-generated constructor stub
+	public DexParser(byte[] data){
 		if (data == null || data.length <= 0x70) {
 			System.out.println("invalid dex file");
 			return;
 		}
-
 		DEX_DATA = new byte[data.length];
 		System.arraycopy(data, 0, DEX_DATA, 0, data.length);
-
+	}
+	
+	public void parse() {
+		// TODO Auto-generated constructor stub
 		boolean isValid = verifyMagic();
 		System.out.println("verify magic : " + isValid);
 		if (!isValid)
@@ -96,8 +97,6 @@ public class DexParser {
 		
 		isValid = verifyMapOffset();
 		System.out.println("verify map offset : " + isValid);
-//		if (!isValid)
-//			return;
 		System.out.println("map offset : 0x" + Integer.toHexString(map_offset));
 		System.out.println("map size : " + map_size);
 		
@@ -128,6 +127,10 @@ public class DexParser {
 		System.arraycopy(DEX_DATA, 12, SIGNATURE, 0, SIGNATURE.length);
 		byte[] signatureBytes = Utils.doCheckSha1(DEX_DATA, MAGIC.length
 				+ CHECKSUM.length + SIGNATURE.length);
+		String str1 = Utils.bytes2HexStr(SIGNATURE);
+		String str2 = Utils.bytes2HexStr(signatureBytes);
+		System.out.println("str1:"+str1);
+		System.out.println("str2:"+str2);
 		return Arrays.equals(SIGNATURE, signatureBytes);
 	}
 
@@ -503,6 +506,22 @@ public class DexParser {
 		codeItem.insns = code_op_data;
 		
 		System.out.println(methodName+" : "+codeItem.toString());
+		parseOpCode(codeItem.insns);
+	}
+	
+	private void parseOpCode(byte[] code_op_data){
+		int offset = 0;
+		List<OpCode> opCodes = new ArrayList<OpCode>();
+		while(offset < code_op_data.length){
+			byte code = code_op_data[offset];
+			OpCode opCode = OpCodeUtil.getOpCode(code);
+			opCodes.add(opCode);
+			offset += opCode.getLength()*2;
+		}
+		
+		for(int i=0; i<opCodes.size(); i++){
+			System.out.println(opCodes.get(i).syntax);
+		}
 	}
 }
 
