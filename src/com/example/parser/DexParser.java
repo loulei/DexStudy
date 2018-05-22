@@ -2,6 +2,7 @@ package com.example.parser;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -51,11 +52,14 @@ public class DexParser {
 	
 	public MethodItem[] methodItems;
 	
-	public ClassDefItem classDefItem;
+	public ClassDefItem[] classDefItems;
 	
-	public DexParser(byte[] data){
+	private PrintWriter writer;
+	
+	public DexParser(byte[] data, PrintWriter writer){
+		this.writer = writer;
 		if (data == null || data.length <= 0x70) {
-			System.out.println("invalid dex file");
+			writer.println("invalid dex file");
 			return;
 		}
 		DEX_DATA = new byte[data.length];
@@ -65,40 +69,40 @@ public class DexParser {
 	public void parse() {
 		// TODO Auto-generated constructor stub
 		boolean isValid = verifyMagic();
-		System.out.println("verify magic : " + isValid);
+		writer.println("verify magic : " + isValid);
 		if (!isValid)
 			return;
 
 		isValid = verifyCheckSum();
-		System.out.println("verify checksum : " + isValid);
+		writer.println("verify checksum : " + isValid);
 		if (!isValid)
 			return;
 
 		isValid = verifySignature();
-		System.out.println("verify signature : " + isValid);
+		writer.println("verify signature : " + isValid);
 		if (!isValid)
 			return;
 
 		isValid = verifyFileSize();
-		System.out.println("verify filesize : " + isValid);
-		System.out.println("file size : " + file_size);
+		writer.println("verify filesize : " + isValid);
+		writer.println("file size : " + file_size);
 		if (!isValid)
 			return;
 
 		isValid = verifyHeaderSize();
-		System.out.println("verify headersize : " + isValid);
+		writer.println("verify headersize : " + isValid);
 		if (!isValid)
 			return;
 
 		isValid = verifyEndianTag();
-		System.out.println("verify endian tag : " + isValid);
+		writer.println("verify endian tag : " + isValid);
 		if (!isValid)
 			return;
 		
 		isValid = verifyMapOffset();
-		System.out.println("verify map offset : " + isValid);
-		System.out.println("map offset : 0x" + Integer.toHexString(map_offset));
-		System.out.println("map size : " + map_size);
+		writer.println("verify map offset : " + isValid);
+		writer.println("map offset : 0x" + Integer.toHexString(map_offset));
+		writer.println("map size : " + map_size);
 		
 		parseMapData();
 		
@@ -129,8 +133,8 @@ public class DexParser {
 				+ CHECKSUM.length + SIGNATURE.length);
 		String str1 = Utils.bytes2HexStr(SIGNATURE);
 		String str2 = Utils.bytes2HexStr(signatureBytes);
-		System.out.println("str1:"+str1);
-		System.out.println("str2:"+str2);
+		writer.println("str1:"+str1);
+		writer.println("str2:"+str2);
 		return Arrays.equals(SIGNATURE, signatureBytes);
 	}
 
@@ -170,7 +174,7 @@ public class DexParser {
 		for(int i=0; i<map_item_count; i++){
 			System.arraycopy(MAP_DATA, i*MAP_ITEM_LEN, mapItemBytes, 0, MAP_ITEM_LEN);
 			MapItem mapItem = new MapItem(mapItemBytes);
-			System.out.println(mapItem.toString());
+			writer.println(mapItem.toString());
 			mapItems.add(mapItem);
 		}
 	}
@@ -228,7 +232,7 @@ public class DexParser {
 			stringItem.data = strBytes;
 			inputStream.close();
 			
-			System.out.println(stringItem.toString());
+			writer.println(stringItem.toString());
 			stringItems[i] = stringItem;
 		}
 	}
@@ -248,7 +252,7 @@ public class DexParser {
 			typeItem.type = new String(stringItems[type_id].data);
 			inputStream.close();
 			
-			System.out.println(typeItem);
+			writer.println(typeItem);
 			typeItems[i] = typeItem;
 		}
 	}
@@ -301,7 +305,7 @@ public class DexParser {
 			}
 			inputStream.close();
 			
-			System.out.println(protoItem);
+			writer.println(protoItem);
 			protoItems[i] = protoItem;
 		}
 	}
@@ -329,7 +333,7 @@ public class DexParser {
 			
 			inputStream.close();
 			
-			System.out.println(fieldItem.toString());
+			writer.println(fieldItem.toString());
 			fieldItems[i] = fieldItem;
 		}
 	}
@@ -356,17 +360,20 @@ public class DexParser {
 			methodItem.methodName = new String(stringItems[Utils.byteToInt(name_id_bytes)].data);
 			
 			inputStream.close();
-			System.out.println(methodItem);
+			writer.println(methodItem);
 			methodItems[i] = methodItem;
 		}
 	}
 	
 	private void parseClassDefData(MapItem mapItem) throws IOException{
-		if(mapItem.size == 1){
-			classDefItem = new ClassDefItem();
-			
+		writer.println("mapItem size:"+mapItem.size);
+		classDefItems = new ClassDefItem[mapItem.size];
+		for(int i=0; i<mapItem.size; i++){
 			InputStream inputStream = Utils.byte2InputStream(DEX_DATA);
-			inputStream.skip(mapItem.offset);
+			int classDefItemOffset = mapItem.offset + i * MapItem.TYPE_CLASS_DEF_ITEM_LEN;
+			inputStream.skip(classDefItemOffset);
+			
+			ClassDefItem classDefItem = new ClassDefItem();
 			
 			byte[] class_id_bytes = new byte[4];
 			inputStream.read(class_id_bytes);
@@ -413,8 +420,10 @@ public class DexParser {
 			inputStream.read(static_value_off);
 			classDefItem.static_value_off = Utils.byteToInt(static_value_off);
 			
-			System.out.println(classDefItem.toString());
+			writer.println(classDefItem.toString());
+			classDefItems[i] = classDefItem;
 		}
+			
 	}
 	
 	private void parseClassData(int offset) throws IOException{
@@ -459,7 +468,7 @@ public class DexParser {
 				encodedMethod.codeOffset = Utils.decodeULEB128(inputStream);
 				encodedMethod.methodName = methodItems[encodedMethod.methodIndex].methodName;
 				classDataItem.directMethods.add(i, encodedMethod);
-				parseCodeItem(encodedMethod.methodName, encodedMethod.codeOffset);
+				parseCodeItem(encodedMethod, encodedMethod.codeOffset);
 			}
 		}
 		
@@ -472,14 +481,14 @@ public class DexParser {
 				encodedMethod.codeOffset = Utils.decodeULEB128(inputStream);
 				encodedMethod.methodName = methodItems[encodedMethod.methodIndex].methodName;
 				classDataItem.virtualMethods.add(i, encodedMethod);
-				parseCodeItem(encodedMethod.methodName, encodedMethod.codeOffset);
+				parseCodeItem(encodedMethod, encodedMethod.codeOffset);
 			}
 		}
 		
-		System.out.println(classDataItem.toString());
+		writer.println(classDataItem.toString());
 	}
 	
-	private void parseCodeItem(String methodName, int offset) throws IOException{
+	private void parseCodeItem(EncodedMethod encodedMethod, int offset) throws IOException{
 		CodeItem codeItem = new CodeItem();
 		
 		InputStream inputStream = Utils.byte2InputStream(DEX_DATA);
@@ -501,28 +510,17 @@ public class DexParser {
 		inputStream.read(uint_data);
 		codeItem.insnsSize = Utils.byteToInt(uint_data);
 		
+		if(codeItem.insnsSize < 0 || codeItem.insnsSize > file_size){
+			return;
+		}
+		
 		byte[] code_op_data = new byte[codeItem.insnsSize * 2];
 		inputStream.read(code_op_data);
 		codeItem.insns = code_op_data;
 		
-		System.out.println(methodName+" : "+codeItem.toString());
-		parseOpCode(codeItem.insns);
+		writer.println(encodedMethod.methodName+" : "+codeItem.toString());
 	}
 	
-	private void parseOpCode(byte[] code_op_data){
-		int offset = 0;
-		List<OpCode> opCodes = new ArrayList<OpCode>();
-		while(offset < code_op_data.length){
-			byte code = code_op_data[offset];
-			OpCode opCode = OpCodeUtil.getOpCode(code);
-			opCodes.add(opCode);
-			offset += opCode.getLength()*2;
-		}
-		
-		for(int i=0; i<opCodes.size(); i++){
-			System.out.println(opCodes.get(i).syntax);
-		}
-	}
 }
 
 
